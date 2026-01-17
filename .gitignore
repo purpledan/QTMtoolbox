@@ -2,3 +2,7 @@
 testscript.py
 testscript_sr830.py
 Data/
+# MacOS Filesystem artifacts
+.DS_STORE
+# PyCharm Environment
+.idea
