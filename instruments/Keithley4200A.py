@@ -5,7 +5,7 @@ Uses pyVISA to communicate with the GPIB device.
 Assumes GPIB address is of the form GPIB0::<xx>::INSTR where
 <xx> is the device address (number).
 
-Version 0.1 (2025-02-19)
+Version 0.2 (2026-01-17)
 Daan Wielens - Researcher at ICE/QTM
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
@@ -37,6 +37,33 @@ class Keithley4200A:
         self.Vcomp = 10.0
         self.Icomp_b = 1.0E-3
         self.Vcomp_b = 10.0
+        self.IRanges = {
+            "auto": 0,
+            "1nA":  1,
+            "10nA": 2,
+            "100nA":3,
+            "1uA":  4,
+            "10uA": 5,
+            "100uA":6,
+            "1mA":  7,
+            "10mA": 8,
+            "100mA":9,
+            "1A":   10,
+            "1pA":  11,
+            "10pA": 12,
+            "100pA":13
+        }
+        self.VRanges = {
+            "auto": 0,
+            "20V":  1,
+            "200V": 2,
+            "200mV":4,
+            "2V":   5
+        }
+        self.Irange = self.IRanges.get("auto")
+        self.Irange_b = self.IRanges.get("auto")
+        self.Vrange = self.VRanges.get("auto")
+        self.Vrange_b = self.VRanges.get("auto")
 
     def get_iden(self):
         resp = str(self.visa.query('*IDN?'))
@@ -70,7 +97,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 210 V and will not be applied.')
         else:
             self.visa.write('US')
-            self.visa.write('DV1, 0, ' + str(val) + ', ' + str(self.Icomp))
+            self.visa.write('DV1, ' + str(self.Vrange) +', ' + str(val) + ', ' + str(self.Icomp))
 
     def write_dcv_b(self, val):
         fval = float(val)
@@ -78,7 +105,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 210 V and will not be applied.')
         else:
             self.visa.write('US')
-            self.visa.write('DV2, 0, ' + str(val) + ', ' + str(self.Icomp_b))
+            self.visa.write('DV2, ' + str(self.Vrange_b) +', ' + str(val) + ', ' + str(self.Icomp_b))
 
     def read_dci(self):
         self.visa.write('US')
@@ -98,7 +125,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 105 mA and will not be applied.')
         else:
             self.visa.write('US')
-            self.visa.write('DI1, 0, ' + str(val) + ', ' + str(self.Vcomp))
+            self.visa.write('DI1, ' + str(self.Irange) +', ' + str(val) + ', ' + str(self.Vcomp))
 
     def write_dci_b(self, val):
         fval = float(val)
@@ -106,7 +133,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 105 mA and will not be applied.')
         else:
             self.visa.write('US')
-            self.visa.write('DI2, 0, ' + str(val) + ', ' + str(self.Vcomp))
+            self.visa.write('DI2, ' + str(self.Irange_b) +', ' + str(val) + ', ' + str(self.Vcomp))
 
     def read_i(self):
         resp = self.read_dci()
@@ -117,26 +144,48 @@ class Keithley4200A:
         return resp
 
     def write_Vrange(self, val):
-        if val in ['AUTO', 'auto', 'Autorange', 'autorange']:
-            self.visa.write('SOUR:VOLT:RANG AUTO\n')
-        elif val in ['MAX', 'max', 'maximum', '210']:
-            self.visa.write('SOUR:VOLT:RANG MAX\n')
-        elif val in ['DEF', 'def', 'default', '21']:
-            self.visa.write('SOUR:VOLT:RANG DEF\n')
-        elif val in ['MIN', 'min', 'minimum']:
-            self.visa.write('SOUR:VOLT:RANG MIN\n')
-            
+        inval = self.VRanges.get(val)
+        if inval == None:
+            print('Unknown voltage range; must be one of:')
+            print(self.VRanges)
+            print('Defaulting to Autorange!')
+            self.Vrange = self.VRanges.get("auto")
+        else:
+            self.Vrange = inval
+            # Could force the range to this value immediately?
+
+    def write_Vrange_b(self, val):
+        inval = self.VRanges.get(val)
+        if inval == None:
+            print('Unknown voltage range; must be one of:')
+            print(self.VRanges)
+            print('Defaulting to Autorange!')
+            self.Vrange_b = self.VRanges.get("auto")
+        else:
+            self.Vrange_b = inval
+            # Could force the range to this value immediately?
+
     def write_Irange(self, val):
-        if val in ['AUTO', 'auto', 'Autorange', 'autorange']:
-            self.visa.write('SOUR:CURR:RANG AUTO\n')
-        elif val in ['MAX', 'max', 'maximum', '1.05']:
-            self.visa.write('SOUR:CURR:RANG MAX\n')
-        elif val in ['DEF', 'def', 'default', '100E-6']:
-            self.visa.write('SOUR:CURR:RANG DEF\n')
-        elif val in ['MIN', 'min', 'minimum', '1E-6']:
-            self.visa.write('SOUR:CURR:RANG MIN\n')
-        else :
-            self.visa.write('SOUR:CURR:RANG ' + str(val) + '\n')
+        inval = self.IRanges.get(val)
+        if inval == None:
+            print('Unknown current range; must be one of:')
+            print(self.IRanges)
+            print('Defaulting to Autorange!')
+            self.Irange = self.IRanges.get("auto")
+        else:
+            self.Irange = inval
+            # Could force the range to this value immediately?
+
+    def write_Irange_b(self, val):
+        inval = self.IRanges.get(val)
+        if inval == None:
+            print('Unknown current range; must be one of:')
+            print(self.IRanges)
+            print('Defaulting to Autorange!')
+            self.Irange_b = self.IRanges.get("auto")
+        else:
+            self.Irange_b = inval
+            # Could force the range to this value immediately?
 
     def read_output(self):
         resp = int(self.visa.query('OUTP?').strip('\n'))
