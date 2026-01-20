@@ -5,7 +5,7 @@ Uses pyVISA to communicate with the GPIB device.
 Assumes GPIB address is of the form GPIB0::<xx>::INSTR where
 <xx> is the device address (number).
 
-Version 0.2 (2026-01-17)
+Version 0.3 (2026-01-20)
 Daan Wielens - Researcher at ICE/QTM
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
@@ -64,6 +64,15 @@ class Keithley4200A:
         self.Irange_b = self.IRanges.get("auto")
         self.Vrange = self.VRanges.get("auto")
         self.Vrange_b = self.VRanges.get("auto")
+        self.Pages = {
+            "ChannelDef":   "CH",
+            "SourceSetup":  "SS",
+            "MeasSetup":    "SM",
+            "MeasCont":     "MD",
+            "UserMode":     "US",
+            "UserLib":      "UL",
+        }
+        self.page = None
 
     def get_iden(self):
         resp = str(self.visa.query('*IDN?'))
@@ -75,18 +84,28 @@ class Keithley4200A:
     def query(self, val):
         resp = self.visa.query(val).strip('\n')
         return resp
+    def set_page(self, val):
+        newpage = self.Pages.get(val)
+        if (newpage == None):
+            print(f'Unknown page: {val}; Current page: {self.page}')
+            return False
+        if (newpage == self.page):
+            return True
+        self.page = newpage
+        self.visa.write(self.page)
+        return True
 
     # Normal functions apply to SMU A(1) and _b functions apply to SMU B(2)
     # This keeps 1:1 relationship with 2400 SMU code
     
     def read_dcv(self):
-        self.visa.write('US')
+        self.set_page("UserMode")
         resp = self.visa.query('TV 1').strip('\n\r')
         resp = float(resp[3:64])
         return resp
 
     def read_dcv_b(self):
-        self.visa.write('US')
+        self.set_page("UserMode")
         resp = self.visa.query('TV 2').strip('\n\r')
         resp = float(resp[3:64])
         return resp
@@ -96,7 +115,7 @@ class Keithley4200A:
         if abs(fval) > 210:
             print('Your setpoint is higher than the allowed +/- 210 V and will not be applied.')
         else:
-            self.visa.write('US')
+            self.set_page("UserMode")
             self.visa.write('DV1, ' + str(self.Vrange) +', ' + str(val) + ', ' + str(self.Icomp))
 
     def write_dcv_b(self, val):
@@ -104,17 +123,17 @@ class Keithley4200A:
         if abs(fval) > 210:
             print('Your setpoint is higher than the allowed +/- 210 V and will not be applied.')
         else:
-            self.visa.write('US')
+            self.set_page("UserMode")
             self.visa.write('DV2, ' + str(self.Vrange_b) +', ' + str(val) + ', ' + str(self.Icomp_b))
 
     def read_dci(self):
-        self.visa.write('US')
+        self.set_page("UserMode")
         resp = self.visa.query('TI 1').strip('\n\r')
         resp = float(resp[3:64])
         return resp
 
     def read_dci_b(self):
-        self.visa.write('US')
+        self.set_page("UserMode")
         resp = self.visa.query('TI 2').strip('\n\r')
         resp = float(resp[3:64])
         return resp
@@ -124,7 +143,7 @@ class Keithley4200A:
         if abs(fval) > 0.1050:
             print('Your setpoint is higher than the allowed +/- 105 mA and will not be applied.')
         else:
-            self.visa.write('US')
+            self.set_page("UserMode")
             self.visa.write('DI1, ' + str(self.Irange) +', ' + str(val) + ', ' + str(self.Vcomp))
 
     def write_dci_b(self, val):
@@ -132,7 +151,7 @@ class Keithley4200A:
         if abs(fval) > 0.1050:
             print('Your setpoint is higher than the allowed +/- 105 mA and will not be applied.')
         else:
-            self.visa.write('US')
+            self.set_page("UserMode")
             self.visa.write('DI2, ' + str(self.Irange_b) +', ' + str(val) + ', ' + str(self.Vcomp))
 
     def read_i(self):
@@ -187,6 +206,7 @@ class Keithley4200A:
             self.Irange_b = inval
             # Could force the range to this value immediately?
 
+    # TODO: This function is not implemented on the 4200A
     def read_output(self):
         resp = int(self.visa.query('OUTP?').strip('\n'))
         return resp
