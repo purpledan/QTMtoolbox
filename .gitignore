@@ -6,3 +6,4 @@ Data/
 .DS_STORE
 # PyCharm Environment
 .idea
+.venv

@@ -5,7 +5,7 @@ Uses pyVISA to communicate with the GPIB device.
 Assumes GPIB address is of the form GPIB0::<xx>::INSTR where
 <xx> is the device address (number).
 
-Version 0.3 (2026-01-20)
+Version 0.4 (2026-01-27)
 Daan Wielens - Researcher at ICE/QTM
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
@@ -13,7 +13,8 @@ d.h.wielens@utwente.nl
 d.h.janse@utwente.nl
 """
 
-import pyvisa as visa
+import pyvisa
+import gpib_stb
 
 class WrongInstrErr(Exception):
     """
@@ -23,12 +24,20 @@ class WrongInstrErr(Exception):
     """
     pass
 
+class InstrPolTimeout(Exception):
+    """
+    Timeout while polling instrument
+    """
+    pass
+
 class Keithley4200A:
     type = 'Keithley 4200A-SCS Parameter Analyzer'
 
     def __init__(self, GPIBaddr):
-        rm = visa.ResourceManager()
+        rm = pyvisa.ResourceManager()
         self.visa = rm.open_resource('GPIB0::{}::INSTR'.format(GPIBaddr))
+        self.visa.write_termination = '\r\n'
+        self.visa.read_termination = '\r\n'
         resp = self.visa.query('*IDN?')
         model = resp.split(',')[1]
         if model not in ['KI4200A', 'MODEL 4200A']:
@@ -73,6 +82,9 @@ class Keithley4200A:
             "UserLib":      "UL",
         }
         self.page = None
+        self.stb = gpib_stb.gpib_stb()
+        self.stb.get = self.visa.read_stb
+        self.visa.write('DR1')
 
     def get_iden(self):
         resp = str(self.visa.query('*IDN?'))
@@ -82,14 +94,23 @@ class Keithley4200A:
         self.visa.close()
 
     def query(self, val):
-        resp = self.visa.query(val).strip('\n')
+        resp = self.visa.query(val)
         return resp
+
+    def pol(self, val):
+        self.visa.write(val)
+        if self.stb.pol(6):
+            resp = self.visa.read()
+            self.visa.clear()
+            return resp
+        raise InstrPolTimeout('Timedout')
+
     def set_page(self, val):
         newpage = self.Pages.get(val)
-        if (newpage == None):
+        if newpage is None:
             print(f'Unknown page: {val}; Current page: {self.page}')
             return False
-        if (newpage == self.page):
+        if newpage == self.page:
             return True
         self.page = newpage
         self.visa.write(self.page)
@@ -100,7 +121,7 @@ class Keithley4200A:
     
     def read_dcv(self):
         self.set_page("UserMode")
-        resp = self.visa.query('TV 1').strip('\n\r')
+        resp = self.pol('TV 1')
         resp = float(resp[3:64])
         return resp
 
@@ -128,7 +149,7 @@ class Keithley4200A:
 
     def read_dci(self):
         self.set_page("UserMode")
-        resp = self.visa.query('TI 1').strip('\n\r')
+        resp = self.pol('TI 1')
         resp = float(resp[3:64])
         return resp
 
@@ -164,7 +185,7 @@ class Keithley4200A:
 
     def write_Vrange(self, val):
         inval = self.VRanges.get(val)
-        if inval == None:
+        if inval is None:
             print('Unknown voltage range; must be one of:')
             print(self.VRanges)
             print('Defaulting to Autorange!')
@@ -175,7 +196,7 @@ class Keithley4200A:
 
     def write_Vrange_b(self, val):
         inval = self.VRanges.get(val)
-        if inval == None:
+        if inval is None:
             print('Unknown voltage range; must be one of:')
             print(self.VRanges)
             print('Defaulting to Autorange!')
@@ -186,7 +207,7 @@ class Keithley4200A:
 
     def write_Irange(self, val):
         inval = self.IRanges.get(val)
-        if inval == None:
+        if inval is None:
             print('Unknown current range; must be one of:')
             print(self.IRanges)
             print('Defaulting to Autorange!')
@@ -197,7 +218,7 @@ class Keithley4200A:
 
     def write_Irange_b(self, val):
         inval = self.IRanges.get(val)
-        if inval == None:
+        if inval is None:
             print('Unknown current range; must be one of:')
             print(self.IRanges)
             print('Defaulting to Autorange!')
@@ -206,27 +227,20 @@ class Keithley4200A:
             self.Irange_b = inval
             # Could force the range to this value immediately?
 
-    # TODO: This function is not implemented on the 4200A
+    # NOTE: This function is not implemented on the 4200A
     def read_output(self):
-        resp = int(self.visa.query('OUTP?').strip('\n'))
-        return resp
+        return None
 
     def write_output(self, val):
         if val in [1, 'On', 'ON', 'on']:
-            self.visa.write('OUTP 1\n')
+            return
         elif val in [0, 'Off', 'OFF', 'off']:
-            self.visa.write('OUTP 0\n')
+            # NOTE: This is a hack to turn off the devices; there is no alternative to switch the 4200 off
+            self.set_page("UserMode")
+            self.visa.write("DV1")
+            self.visa.write("DV2")
         else:
             print('This is not a valid argument for the Keithley Output command. Your command will be ignored.')
-
-    def read_Vcomptrip(self):
-        # When sourcing current, this returns 1 if the voltage is above the compliance limit and 0 otherwise.
-        resp = int(self.visa.query('SENS:VOLT:PROT:TRIP?').strip('\n'))
-        return resp
-    
-    def read_Icomptrip(self):
-        resp = int(self.visa.query('SENS:CURR:PROT:TRIP?').strip('\n'))
-        return resp
 
     def read_Vcomplevel(self):
         return self.Vcomp
