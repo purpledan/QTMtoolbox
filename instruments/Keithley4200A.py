@@ -84,7 +84,7 @@ class Keithley4200A:
         self.page = None
         self.stb = gpib_stb.gpib_stb()
         self.stb.get = self.visa.read_stb
-        self.visa.write('DR1')
+        #self.visa.write('DR1')
 
     def get_iden(self):
         resp = str(self.visa.query('*IDN?'))
@@ -99,9 +99,8 @@ class Keithley4200A:
 
     def pol(self, val):
         self.visa.write(val)
-        if self.stb.pol(6):
+        if self.stb.pol(0):
             resp = self.visa.read()
-            self.visa.clear()
             return resp
         raise InstrPolTimeout('Timedout')
 
