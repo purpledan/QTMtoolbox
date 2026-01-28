@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Module to interact with a Keithley 4200A-SCS Parameter Analyzer.
-Uses pyVISA to communicate with the GPIB device.
-Assumes GPIB address is of the form GPIB0::<xx>::INSTR where
-<xx> is the device address (number).
+Uses pyVISA to communicate with the ethernet device.
+Assumes IP address is of the form TCPIP0::<xx>::SOCKET where
+<xx> is the IP address (string).
 
-Version 0.4 (2026-01-27)
+Version 0.5 (2026-01-28)
 Daan Wielens - Researcher at ICE/QTM
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
@@ -14,30 +14,23 @@ d.h.janse@utwente.nl
 """
 
 import pyvisa
-import gpib_stb
 
 class WrongInstrErr(Exception):
     """
     A connection was established to the instrument, but the instrument
     is not a Keithley 4200A-SCS. Please retry with the correct
-    GPIB address. Make sure that each device has a unique address.
-    """
-    pass
-
-class InstrPolTimeout(Exception):
-    """
-    Timeout while polling instrument
+    IP address. Make sure that each device has a unique address.
     """
     pass
 
 class Keithley4200A:
     type = 'Keithley 4200A-SCS Parameter Analyzer'
 
-    def __init__(self, GPIBaddr):
+    def __init__(self, IPAddr):
         rm = pyvisa.ResourceManager()
-        self.visa = rm.open_resource('GPIB0::{}::INSTR'.format(GPIBaddr))
-        self.visa.write_termination = '\r\n'
-        self.visa.read_termination = '\r\n'
+        self.visa = rm.open_resource('TCPIP0::{}::1225::SOCKET'.format(IPAddr))
+        self.visa.write_termination = '\0'
+        self.visa.read_termination = '\0'
         resp = self.visa.query('*IDN?')
         model = resp.split(',')[1]
         if model not in ['KI4200A', 'MODEL 4200A']:
@@ -48,43 +41,41 @@ class Keithley4200A:
         self.Vcomp_b = 10.0
         self.IRanges = {
             "auto": 0,
-            "1nA":  1,
+            "1nA": 1,
             "10nA": 2,
-            "100nA":3,
-            "1uA":  4,
+            "100nA": 3,
+            "1uA": 4,
             "10uA": 5,
-            "100uA":6,
-            "1mA":  7,
+            "100uA": 6,
+            "1mA": 7,
             "10mA": 8,
-            "100mA":9,
-            "1A":   10,
-            "1pA":  11,
+            "100mA": 9,
+            "1A": 10,
+            "1pA": 11,
             "10pA": 12,
-            "100pA":13
+            "100pA": 13
         }
         self.VRanges = {
             "auto": 0,
-            "20V":  1,
+            "20V": 1,
             "200V": 2,
-            "200mV":4,
-            "2V":   5
+            "200mV": 4,
+            "2V": 5
         }
         self.Irange = self.IRanges.get("auto")
         self.Irange_b = self.IRanges.get("auto")
         self.Vrange = self.VRanges.get("auto")
         self.Vrange_b = self.VRanges.get("auto")
         self.Pages = {
-            "ChannelDef":   "CH",
-            "SourceSetup":  "SS",
-            "MeasSetup":    "SM",
-            "MeasCont":     "MD",
-            "UserMode":     "US",
-            "UserLib":      "UL",
+            "ChannelDef": "CH",
+            "SourceSetup": "SS",
+            "MeasSetup": "SM",
+            "MeasCont": "MD",
+            "UserMode": "US",
+            "UserLib": "UL",
         }
         self.page = None
-        self.stb = gpib_stb.gpib_stb()
-        self.stb.get = self.visa.read_stb
-        #self.visa.write('DR1')
+        self.visa.query('DR1')
 
     def get_iden(self):
         resp = str(self.visa.query('*IDN?'))
@@ -102,7 +93,6 @@ class Keithley4200A:
         if self.stb.pol(0):
             resp = self.visa.read()
             return resp
-        raise InstrPolTimeout('Timedout')
 
     def set_page(self, val):
         newpage = self.Pages.get(val)
@@ -112,21 +102,21 @@ class Keithley4200A:
         if newpage == self.page:
             return True
         self.page = newpage
-        self.visa.write(self.page)
+        self.visa.query(self.page)
         return True
 
     # Normal functions apply to SMU A(1) and _b functions apply to SMU B(2)
     # This keeps 1:1 relationship with 2400 SMU code
-    
+
     def read_dcv(self):
         self.set_page("UserMode")
-        resp = self.pol('TV 1')
+        resp = self.visa.query('TV 1')
         resp = float(resp[3:64])
         return resp
 
     def read_dcv_b(self):
         self.set_page("UserMode")
-        resp = self.visa.query('TV 2').strip('\n\r')
+        resp = self.visa.query('TV 2')
         resp = float(resp[3:64])
         return resp
 
@@ -136,7 +126,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 210 V and will not be applied.')
         else:
             self.set_page("UserMode")
-            self.visa.write('DV1, ' + str(self.Vrange) +', ' + str(val) + ', ' + str(self.Icomp))
+            self.visa.query('DV1, ' + str(self.Vrange) + ', ' + str(val) + ', ' + str(self.Icomp))
 
     def write_dcv_b(self, val):
         fval = float(val)
@@ -144,17 +134,17 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 210 V and will not be applied.')
         else:
             self.set_page("UserMode")
-            self.visa.write('DV2, ' + str(self.Vrange_b) +', ' + str(val) + ', ' + str(self.Icomp_b))
+            self.visa.query('DV2, ' + str(self.Vrange_b) + ', ' + str(val) + ', ' + str(self.Icomp_b))
 
     def read_dci(self):
         self.set_page("UserMode")
-        resp = self.pol('TI 1')
+        resp = self.visa.query('TI 1')
         resp = float(resp[3:64])
         return resp
 
     def read_dci_b(self):
         self.set_page("UserMode")
-        resp = self.visa.query('TI 2').strip('\n\r')
+        resp = self.visa.query('TI 2')
         resp = float(resp[3:64])
         return resp
 
@@ -164,7 +154,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 105 mA and will not be applied.')
         else:
             self.set_page("UserMode")
-            self.visa.write('DI1, ' + str(self.Irange) +', ' + str(val) + ', ' + str(self.Vcomp))
+            self.visa.query('DI1, ' + str(self.Irange) + ', ' + str(val) + ', ' + str(self.Vcomp))
 
     def write_dci_b(self, val):
         fval = float(val)
@@ -172,7 +162,7 @@ class Keithley4200A:
             print('Your setpoint is higher than the allowed +/- 105 mA and will not be applied.')
         else:
             self.set_page("UserMode")
-            self.visa.write('DI2, ' + str(self.Irange_b) +', ' + str(val) + ', ' + str(self.Vcomp))
+            self.visa.query('DI2, ' + str(self.Irange_b) + ', ' + str(val) + ', ' + str(self.Vcomp))
 
     def read_i(self):
         resp = self.read_dci()
@@ -236,8 +226,7 @@ class Keithley4200A:
         elif val in [0, 'Off', 'OFF', 'off']:
             # NOTE: This is a hack to turn off the devices; there is no alternative to switch the 4200 off
             self.set_page("UserMode")
-            self.visa.write("DV1")
-            self.visa.write("DV2")
+            self.visa.query("DV1 DV2")
         else:
             print('This is not a valid argument for the Keithley Output command. Your command will be ignored.')
 
@@ -264,6 +253,6 @@ class Keithley4200A:
 
     def write_Icomplevel_b(self, val):
         self.Icomp_b = val
-        
+
     def write_integT(self, val):
-        self.visa.write('IT' + str(val))
+        self.visa.query('IT' + str(val))

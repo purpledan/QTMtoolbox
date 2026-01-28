@@ -258,6 +258,23 @@ def move(device, variable, setpoint, rate, silent=False):
             print('    ' + device.__class__.__name__ + '.' + variable + ' has moved to its setpoint.')
         return
 
+    # Keithley 4200A-SCS Parameter Analyzer
+    """
+    The Keithley 4200A-SCS Parameter Analyzer is also a 'slow' device which can't keep up 
+    with the current poll rate of 20 ms. We therefore incorporate a separate move
+    function for the device.
+    For well-documented code, please check the "Devices that can apply a setpoint instantly",
+    as this code is derived from there.
+    """
+    if device.type == 'Keithley 4200A-SCS Parameter Analyzer':
+        # Always finish with writing setpoint
+        write_command = getattr(device, 'write_' + variable)
+        write_command(setpoint)
+
+        if not silent:
+            print('    ' + device.__class__.__name__ + '.' + variable + ' has moved to its setpoint.')
+        return
+
     # Devices that can apply a setpoint instantly
     """
     The script below applies to most devices, which can apply a given setpoint
