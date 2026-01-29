@@ -90,8 +90,8 @@ def move(device, variable, setpoint, rate, silent=False):
     write_var and read_var modules.
     """
     # Does the device have its own move handler?
-    dev_move_to = getattr(device, 'move')
-    if dev_move_to:
+    if hasattr(device, 'move'):
+        dev_move_to = getattr(device, 'move')
         dev_move_to(variable, setpoint, rate, silent)
         return
 
