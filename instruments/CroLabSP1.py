@@ -56,7 +56,7 @@ class CryoLabSP1:
         self.LPres = float(status[4])
         self.Vac = float(status[5])
 
-    def write_Setp(self, temperature):
+    def write_temperature(self, temperature):
         retval = self.query('SETPOINT: {:.2f}'.format(temperature))
         status = retval.split(':')[1]
         if status == 'OK':
@@ -66,3 +66,12 @@ class CryoLabSP1:
     def read_temperature(self):
         self.read_status()
         return self.Temp
+
+    def read_setpoint(self):
+        self.read_status()
+        return self.Setp
+
+    def read_vacuum(self):
+        self.read_status()
+        return self.Vac
+    
