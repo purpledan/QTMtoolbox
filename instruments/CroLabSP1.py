@@ -5,7 +5,7 @@ Uses pyVISA to communicate with the ethernet device.
 Assumes IP address is of the form TCPIP0::<xx>::SOCKET where
 <xx> is the IP address (string).
 
-Version 0.1 (2026-01-28)
+Version 0.2 (2026-01-29)
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
 d.h.janse@utwente.nl
@@ -28,8 +28,8 @@ class CryoLabSP1:
         rm = pyvisa.ResourceManager()
         self.visa = rm.open_resource('TCPIP0::{}::5041::SOCKET'.format(IPAddr))
         self.visa.write_termination = '\r\n'
-        self.visa.read_termination = '\r\n\r\n' # This is a bug on their side; manual says it should be just \r\n
-        resp = self.visa.query('STATUS')
+        self.visa.read_termination = '\r\n'
+        resp = self.query('STATUS')
         model = resp.split(':')[0]
         if model not in ['STATUS', '|']:
             raise WrongInstrErr('Expected CryoLab, got {}'.format(resp))
@@ -41,18 +41,23 @@ class CryoLabSP1:
         self.LPres = -0.0
         self.Vac = -0.0
 
+    def query(self, val):
+        retval = self.visa.query(val)
+        self.visa.read() #The server sends an extra \r\n so we read and discard
+        return retval
+
     def read_status(self):
-        retval = self.visa.query('SENSORS')
+        retval = self.query('SENSORS')
         status = retval.split(':')[1].split('|')
-        self.Setp = float(status[1])
-        self.Temp = float(status[2])
-        self.HPow = float(status[3])
-        self.BPres = float(status[4])
-        self.LPres = float(status[5])
-        self.Vac = float(status[6])
+        self.Setp = float(status[0])
+        self.Temp = float(status[1])
+        self.HPow = float(status[2])
+        self.BPres = float(status[3])
+        self.LPres = float(status[4])
+        self.Vac = float(status[5])
 
     def write_Setp(self, temperature):
-        retval = self.visa.query('SETPOINT: {:.2f}'.format(temperature))
+        retval = self.query('SETPOINT: {:.2f}'.format(temperature))
         status = retval.split(':')[1]
         if status is 'OK':
             return True
