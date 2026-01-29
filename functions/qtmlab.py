@@ -89,6 +89,11 @@ def move(device, variable, setpoint, rate, silent=False):
     Note: a variable can only be moved if its instrument class has both
     write_var and read_var modules.
     """
+    # Does the device have its own move handler?
+    dev_move_to = getattr(device, 'move')
+    if dev_move_to:
+        dev_move_to(variable, setpoint, rate, silent)
+        return
 
     # Oxford Magnet Controller - timing issue fix
     """
@@ -255,23 +260,6 @@ def move(device, variable, setpoint, rate, silent=False):
         write_command(setpoint)
         
         if not silent:    
-            print('    ' + device.__class__.__name__ + '.' + variable + ' has moved to its setpoint.')
-        return
-
-    # Keithley 4200A-SCS Parameter Analyzer
-    """
-    The Keithley 4200A-SCS Parameter Analyzer is also a 'slow' device which can't keep up 
-    with the current poll rate of 20 ms. We therefore incorporate a separate move
-    function for the device.
-    For well-documented code, please check the "Devices that can apply a setpoint instantly",
-    as this code is derived from there.
-    """
-    if device.type == 'Keithley 4200A-SCS Parameter Analyzer':
-        # Always finish with writing setpoint
-        write_command = getattr(device, 'write_' + variable)
-        write_command(setpoint)
-
-        if not silent:
             print('    ' + device.__class__.__name__ + '.' + variable + ' has moved to its setpoint.')
         return
 

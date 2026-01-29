@@ -88,11 +88,22 @@ class Keithley4200A:
         resp = self.visa.query(val)
         return resp
 
-    def pol(self, val):
-        self.visa.write(val)
-        if self.stb.pol(0):
-            resp = self.visa.read()
-            return resp
+    def move(self, variable, setpoint, rate, silent):
+        # Keithley 4200A-SCS Parameter Analyzer
+        """
+        The Keithley 4200A-SCS Parameter Analyzer is also a 'slow' device which can't keep up
+        with the current poll rate of 20 ms. We therefore incorporate a separate move
+        function for the device.
+        For well-documented code, please check the "Devices that can apply a setpoint instantly",
+        as this code is derived from there.
+        """
+        # Always finish with writing setpoint
+        write_command = getattr(self, 'write_' + variable)
+        write_command(setpoint)
+
+        if not silent:
+            print('    ' + self.__class__.__name__ + '.' + variable + ' has moved to its setpoint.')
+        return
 
     def set_page(self, val):
         newpage = self.Pages.get(val)
