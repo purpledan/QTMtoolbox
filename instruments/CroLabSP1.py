@@ -26,7 +26,7 @@ class CryoLabSP1:
 
     def __init__(self, IPAddr):
         rm = pyvisa.ResourceManager()
-        self.visa = rm.open_resource('TCPIP0::{}::5041::SOCKET'.format(IPAddr))
+        self.visa = rm.open_resource('TCPIP0::{}::5046::SOCKET'.format(IPAddr))
         self.visa.write_termination = '\r\n'
         self.visa.read_termination = '\r\n'
         resp = self.query('STATUS')
@@ -59,7 +59,7 @@ class CryoLabSP1:
     def write_Setp(self, temperature):
         retval = self.query('SETPOINT: {:.2f}'.format(temperature))
         status = retval.split(':')[1]
-        if status is 'OK':
+        if status == 'OK':
             return True
         return False
 
