@@ -5,7 +5,7 @@ Uses pyVISA to communicate with the ethernet device.
 Assumes IP address is of the form TCPIP0::<xx>::SOCKET where
 <xx> is the IP address (string).
 
-Version 0.6 (2026-02-02)
+Version 0.7 (2026-02-02)
 Daan Wielens - Researcher at ICE/QTM
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
@@ -30,7 +30,7 @@ class Keithley4200A:
     type = 'Keithley 4200A-SCS Parameter Analyzer'
 
     class Pages(Enum):
-        CHANNEL_SET = "CH"
+        CHANNEL_SET = "DE"
         SOURCE_SET = "SS"
         MEAS_SET = "SM"
         MEAS_CON = "MD"
@@ -93,9 +93,9 @@ class Keithley4200A:
         return resp
 
     def set_page(self, page):
-        if page == self.page:
+        if page.value == self.page:
             return True
-        self.page = page
+        self.page = page.value
         self.visa.query(self.page)
         return True
 
@@ -285,13 +285,13 @@ class Keithley4200A:
             self.integration = 2
 
 
-        def channelsetup(self, channel: int, name: str, mode: int, func: int):
+        def channelsetup(self, channel: int, name: str, mode, func):
             self.dev.set_page(self.dev.Pages.CHANNEL_SET)
-            self.dev.query("CH{chan}, '{chan_name}V', '{chan_name}I, {chan_mode}, {chan_func}".format(chan = channel, chan_name = name, chan_mode = mode, chan_func = func))
+            self.dev.query("CH{chan}, '{chan_name}V{chan}', '{chan_name}I{chan}, {chan_mode}, {chan_func}".format(chan = channel, chan_name = name, chan_mode = mode.value, chan_func = func.value))
             if channel == 1:
-                self.channelA = (channel, name, mode, func)
+                self.channelA = (channel, name, mode.value, func.value)
             if channel == 2:
-                self.channelB = (channel, name, mode, func)
+                self.channelB = (channel, name, mode.value, func.value)
 
         def sweepsetup(self, channel: int, start: float, end: float, npoints: int, compliance: float):
             assert 2*npoints <= 4096 # Limit for the 4200A
@@ -312,9 +312,9 @@ class Keithley4200A:
             else:
                 chan_set = self.channelB
 
-            if chan_set[2] == self.chmode.SOURCE_VOLT:
+            if chan_set[2] == self.chmode.SOURCE_VOLT.value:
                 mode = 'VL'
-            elif chan_set[2] == self.chmode.SOURCE_CURR:
+            elif chan_set[2] == self.chmode.SOURCE_CURR.value:
                 mode = 'IL'
 
             self.dev.query('{chan_mode}{chan_num}, 1, {compl}'.format(chan_mode = mode, chan_num = chan_set[0], compl = compliance) + sweep_string)
@@ -322,12 +322,18 @@ class Keithley4200A:
             self.dev.query('DT {:.3f}'.format(self.delaytime))
             self.dev.query('HT {:.1f}'.format(self.holdtime))
 
-        def measuresetup(self):
+        def measuresetup(self, channel):
             self.dev.set_page(self.dev.Pages.MEAS_SET)
             self.dev.query('DM2')
             self.dev.query('IN {:.2f}'.format(self.between))
             self.dev.query('WT {:.3f}'.format(self.waittime))
             self.dev.write_integT(self.integration)
+            chan_set = None
+            if channel == 1:
+                chan_set = self.channelA
+            else:
+                chan_set = self.channelB
+            self.dev.query("LI '{chan_name}V{chan}', '{chan_name}I{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
 
         def trigger(self):
             self.dev.set_page(self.dev.Pages.MEAS_CON)
@@ -339,7 +345,20 @@ class Keithley4200A:
                 chan_set = self.channelA
             else:
                 chan_set = self.channelB
-            self.dev.query("DO {}V".format(chan_set[1]))
+
+            status: str = self.dev.query("DO 'CH{}S'".format(chan_set[0]))
+            status = status.split(',')
+
+            timestamps: str = self.dev.query("DO 'CH{}T'".format(chan_set[0]))
+            timestamps = timestamps.split(',')
+
+            voltages: str = self.dev.query("DO '{chan_name}V{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
+            voltages = voltages.split(',')
+
+            currents: str = self.dev.query("DO '{chan_name}I{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
+            currents = currents.split(',')
+
+            return status, timestamps, voltages, currents
 
         def abort(self):
 
