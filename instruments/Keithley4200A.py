@@ -92,6 +92,12 @@ class Keithley4200A:
         resp = self.visa.query(val)
         return resp
 
+    def pol(self, bit):
+        resp = self.query('SP')
+        if resp & (1 << bit) != 0:
+            return True
+        return False
+
     def set_page(self, page):
         if page.value == self.page:
             return True
