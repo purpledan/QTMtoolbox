@@ -93,7 +93,7 @@ class Keithley4200A:
         return resp
 
     def pol(self, bit):
-        resp = self.query('SP')
+        resp = int(self.query('SP'))
         if resp & (1 << bit) != 0:
             return True
         return False
@@ -290,6 +290,8 @@ class Keithley4200A:
             self.between = 0.01
             self.integration = 2
 
+            self.sweeplist = None
+
 
         def channelsetup(self, channel: int, name: str, mode, func):
             self.dev.set_page(self.dev.Pages.CHANNEL_SET)
@@ -304,9 +306,11 @@ class Keithley4200A:
 
             sweep_string = ""
             sweep = np.linspace(start, end, npoints)
+            self.sweeplist = np.copy(sweep)
             for step in sweep:
                 sweep_string = sweep_string + ", {}".format(float(step))
             sweep = np.linspace(end, start, npoints)
+            np.concat((self.sweeplist, sweep))
             for step in sweep:
                 sweep_string = sweep_string + ", {}".format(float(step))
 
@@ -366,8 +370,10 @@ class Keithley4200A:
 
             return status, timestamps, voltages, currents
 
-        def abort(self):
+        def busy(self):
+            return  self.dev.pol(4)
 
+        def abort(self):
             self.dev.set_page(self.dev.Pages.MEAS_CON)
             self.dev.query("ME4")
 
