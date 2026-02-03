@@ -279,6 +279,15 @@ class Keithley4200A:
             CONST = 3
             SOURCE = 4
 
+        class measurement:
+            def __init__(self, sweeplist):
+                self.len = np.size(sweeplist)
+                self.set_list = np.copy(sweeplist)
+                self.status_list = np.zeros(len, dtype='|S8')
+                self.time_list = np.zeros(len)
+                self.volt_list = np.zeros(len)
+                self.curr_list = np.zeros(len)
+
         def __init__(self, device):
             self.dev: Keithley4200A = device
             self.channelA = None
@@ -309,7 +318,7 @@ class Keithley4200A:
             sweep = np.linspace(start, end, npoints)
             self.sweeplist = np.copy(sweep)
             for step in sweep:
-                sweep_string = sweep_string + ", {}".format(float(step))
+                sweep_string = sweep_string + ", {:.4E}".format(float(step))
 
             self.dev.set_page(self.dev.Pages.SOURCE_SET)
             mode = None
@@ -324,7 +333,9 @@ class Keithley4200A:
             elif chan_set[2] == self.chmode.SOURCE_CURR.value:
                 mode = 'IL'
 
-            self.dev.query('{chan_mode}{chan_num}, 1, {compl}'.format(chan_mode = mode, chan_num = chan_set[0], compl = compliance) + sweep_string)
+            # It seems that the 4200 is slow so you need to delay the read here
+            message = '{chan_mode}{chan_num}, 1, {compl}'.format(chan_mode = mode, chan_num = chan_set[0], compl = compliance) + sweep_string
+            self.dev.query(message, 4)
 
             self.dev.query('DT {:.3f}'.format(self.delaytime))
             self.dev.query('HT {:.1f}'.format(self.holdtime))
@@ -363,6 +374,8 @@ class Keithley4200A:
             else:
                 chan_set = self.channelB
 
+            ret_meas = self.measurement(self.sweeplist)
+
             status: str = self.dev.query("DO 'CH{}S'".format(chan_set[0]))
             status = status.split(',')
 
@@ -375,7 +388,13 @@ class Keithley4200A:
             currents: str = self.dev.query("DO '{chan_name}I{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
             currents = currents.split(',')
 
-            return status, timestamps, voltages, currents
+            for i in self.sweeplist:
+                ret_meas.status_list[i] = status[i]
+                ret_meas.time_list[i] = self.conv_time(timestamps[i])
+                ret_meas.volt_list[i] = self.conv_meas(voltages[i])
+                ret_meas.curr_list[i] = self.conv_meas(currents[i])
+
+            return ret_meas
 
         def busy(self):
             return  self.dev.pol(4)
@@ -384,6 +403,10 @@ class Keithley4200A:
             self.dev.set_page(self.dev.Pages.MEAS_CON)
             self.dev.query("ME4")
 
+        def conv_time(self, val):
+            return float(val)
 
+        def conv_meas(self, val):
+            return float(val[1:32])
 
 

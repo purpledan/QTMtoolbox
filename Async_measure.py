@@ -39,4 +39,5 @@ while sysmod.busy():
     time.sleep(0.50)
 
 result = sysmod.retreve(1)
-sweeplist = sysmod.sweeplist
+
+# Save the data to a file
