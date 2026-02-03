@@ -281,12 +281,11 @@ class Keithley4200A:
 
         class measurement:
             def __init__(self, sweeplist):
-                self.len = np.size(sweeplist)
+                self.length = np.size(sweeplist)
                 self.set_list = np.copy(sweeplist)
-                self.status_list = np.zeros(len, dtype='|S8')
-                self.time_list = np.zeros(len)
-                self.volt_list = np.zeros(len)
-                self.curr_list = np.zeros(len)
+                self.time_list = np.zeros(self.length)
+                self.volt_list = np.zeros(self.length)
+                self.curr_list = np.zeros(self.length)
 
         def __init__(self, device):
             self.dev: Keithley4200A = device
@@ -376,9 +375,6 @@ class Keithley4200A:
 
             ret_meas = self.measurement(self.sweeplist)
 
-            status: str = self.dev.query("DO 'CH{}S'".format(chan_set[0]))
-            status = status.split(',')
-
             timestamps: str = self.dev.query("DO 'CH{}T'".format(chan_set[0]))
             timestamps = timestamps.split(',')
 
@@ -388,8 +384,7 @@ class Keithley4200A:
             currents: str = self.dev.query("DO '{chan_name}I{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
             currents = currents.split(',')
 
-            for i in self.sweeplist:
-                ret_meas.status_list[i] = status[i]
+            for i in range(np.size(self.sweeplist)):
                 ret_meas.time_list[i] = self.conv_time(timestamps[i])
                 ret_meas.volt_list[i] = self.conv_meas(voltages[i])
                 ret_meas.curr_list[i] = self.conv_meas(currents[i])

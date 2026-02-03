@@ -20,7 +20,7 @@ from instruments.CroLabSP1 import *
 # Connect to devices
 ct = curtime()
 kei = Keithley4200A("192.168.10.42")
-cry = CryoLabSP1("192.169.100.55")
+#cry = CryoLabSP1("192.169.100.55")
 
 # Setup Keithley
 sysmod = kei.sysmode(kei)
