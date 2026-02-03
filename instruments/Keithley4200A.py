@@ -15,7 +15,7 @@ d.h.janse@utwente.nl
 
 import pyvisa
 import numpy as np
-from enum import Enum, nonmember
+from enum import Enum
 
 
 class WrongInstrErr(Exception):
