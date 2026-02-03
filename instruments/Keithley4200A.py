@@ -5,7 +5,7 @@ Uses pyVISA to communicate with the ethernet device.
 Assumes IP address is of the form TCPIP0::<xx>::SOCKET where
 <xx> is the IP address (string).
 
-Version 0.7 (2026-02-02)
+Version 0.8 (2026-02-03)
 Daan Wielens - Researcher at ICE/QTM
 Daniel Janse van Rensburg - PhD Candidate at ICE
 University of Twente
@@ -285,7 +285,7 @@ class Keithley4200A:
             self.channelB = None
             self.delaytime = 0.0
             self.holdtime = 0.0
-            self.autooff = True
+            self.autooff = 1
             self.waittime = 0.0
             self.between = 0.01
             self.integration = 2
@@ -295,7 +295,7 @@ class Keithley4200A:
 
         def channelsetup(self, channel: int, name: str, mode, func):
             self.dev.set_page(self.dev.Pages.CHANNEL_SET)
-            self.dev.query("CH{chan}, '{chan_name}V{chan}', '{chan_name}I{chan}, {chan_mode}, {chan_func}".format(chan = channel, chan_name = name, chan_mode = mode.value, chan_func = func.value))
+            self.dev.query("CH{chan}, '{chan_name}V{chan}', '{chan_name}I{chan}', {chan_mode}, {chan_func}".format(chan = channel, chan_name = name, chan_mode = mode.value, chan_func = func.value))
             if channel == 1:
                 self.channelA = (channel, name, mode.value, func.value)
             if channel == 2:
@@ -331,6 +331,7 @@ class Keithley4200A:
 
             self.dev.query('DT {:.3f}'.format(self.delaytime))
             self.dev.query('HT {:.1f}'.format(self.holdtime))
+            self.dev.query('ST {chan_num}, {set}'.format(chan_num = chan_set[0], set = self.autooff))
 
         def measuresetup(self, channel):
             self.dev.set_page(self.dev.Pages.MEAS_SET)
@@ -344,6 +345,14 @@ class Keithley4200A:
             else:
                 chan_set = self.channelB
             self.dev.query("LI '{chan_name}V{chan}', '{chan_name}I{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
+
+        def rangesetup(self, channel, source_range):
+            chan_set = None
+            if channel == 1:
+                chan_set = self.channelA
+            else:
+                chan_set = self.channelB
+            self.dev.query('SR {chan_num}, {range_set}'.format(chan_num = chan_set[0], range_set = source_range))
 
         def trigger(self):
             self.dev.set_page(self.dev.Pages.MEAS_CON)
