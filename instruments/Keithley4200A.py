@@ -289,6 +289,7 @@ class Keithley4200A:
             self.waittime = 0.0
             self.between = 0.01
             self.integration = 2
+            self.abortoncomp = 0
 
             self.sweeplist = None
 
@@ -302,15 +303,11 @@ class Keithley4200A:
                 self.channelB = (channel, name, mode.value, func.value)
 
         def sweepsetup(self, channel: int, start: float, end: float, npoints: int, compliance: float):
-            assert 2*npoints <= 4096 # Limit for the 4200A
+            assert npoints <= 4096 # Limit for the 4200A
 
             sweep_string = ""
             sweep = np.linspace(start, end, npoints)
             self.sweeplist = np.copy(sweep)
-            for step in sweep:
-                sweep_string = sweep_string + ", {}".format(float(step))
-            sweep = np.linspace(end, start, npoints)
-            np.concat((self.sweeplist, sweep))
             for step in sweep:
                 sweep_string = sweep_string + ", {}".format(float(step))
 
@@ -332,6 +329,7 @@ class Keithley4200A:
             self.dev.query('DT {:.3f}'.format(self.delaytime))
             self.dev.query('HT {:.1f}'.format(self.holdtime))
             self.dev.query('ST {chan_num}, {set}'.format(chan_num = chan_set[0], set = self.autooff))
+            self.dev.query('EC {}'.format(self.abortoncomp))
 
         def measuresetup(self, channel):
             self.dev.set_page(self.dev.Pages.MEAS_SET)
