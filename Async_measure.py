@@ -26,7 +26,9 @@ cry = CryoLabSP1("192.169.100.55")
 sysmod = kei.sysmode(kei)
 sysmod.channelsetup(1, 'O', sysmod.chmode.SOURCE_VOLT, sysmod.chfunc.SWEEP)
 
-sysmod.sweepsetup(1, 0.0, 2, 10, 0.02)
+sysmod.abortoncomp = 1
+
+sysmod.sweepsetup(1, 0.0, 10, 2048, 0.02)
 sysmod.measuresetup(1)
 sysmod.trigger()
 
@@ -37,3 +39,4 @@ while sysmod.busy():
     time.sleep(0.50)
 
 result = sysmod.retreve(1)
+sweeplist = sysmod.sweeplist
