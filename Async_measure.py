@@ -20,7 +20,7 @@ from instruments.CroLabSP1 import *
 # Connect to devices
 ct = curtime()
 kei = Keithley4200A("192.168.10.42")
-cry = CryoLabSP1("192.169.100.55")
+cry = CryoLabSP1("192.168.100.55")
 
 # Setup Keithley
 sysmod = kei.sysmode(kei)
@@ -47,12 +47,18 @@ name = "Test1"
 
 # Go to temperature, monitor status
 for temp_step in steps:
+    print(f"Going to {temp_step} K")
     cry.goto(temp_step)
-    while cry.reached(Tmax_diff, Tmax_dev, Tmax_std):
+    cry.log()
+    cry.log()
+    while cry.reached(Tmax_diff, Tmax_dev, Tmax_std) is False:
         cry.log()
         # Check up on other things ?
+        debug_ret = cry.stat_debug()
+        print(f"Set: {cry.Setp}, Cur: {cry.Temp}, Avg: {debug_ret[0]}, Std: {debug_ret[1]}")
         # Sleep here (sets the polling rate while waiting for temperature setpoint to be reached
-
+        time.sleep(0.5)
+    print("Measuring!")
     #Here we assume that the temperature is good
     # We can set up different sweeps for different temperatures, else we can also do this part outside the loop
     sysmod.sweepsetup(1, Vstart, Vend, Vsteps, Icompliance)
@@ -80,14 +86,16 @@ for temp_step in steps:
     # We can now get the data
     result = sysmod.retreve(1)
     # Save the data to a file or something
-    file_out.write("time, volt_set, volt_meas, cur_meas")
+    file_out.write("time, volt_set, volt_meas, cur_meas\n")
     for i in range(Vsteps):
-        file_out.write(f"{result.time_list[i]}, {result.set_list[i]}, {result.volt_list[i]}, {result.curr_list[i]}")
-    file_out.write("### Temp Log ###")
-    file_out.write("time, temperature")
-    for i in range(len(temperature_result[0])):
-        file_out.write(f"{temperature_result[0][i]}, {temperature_result[1][i]}")
+        file_out.write(f"{result.time_list[i]}, {result.set_list[i]}, {result.volt_list[i]}, {result.curr_list[i]}\n")
+    file_out.write("### Temp Log ###\n")
+    file_out.write("time, temperature\n")
+    for i in range(len(temperature_result)):
+        file_out.write(f"{temperature_result[i][0]}, {temperature_result[i][0]}\n")
     file_out.close()
     # Go to next temperature setpoint
+    print("Done with setpoint")
 
 # Done with experiment
+print("Done")

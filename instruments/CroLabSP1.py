@@ -117,7 +117,11 @@ class CryoLabSP1:
         self.ready = True
         return True
 
+    def stat_debug(self):
+        data = []
+        data = self.buffer.get()
+        avg_data = stat.mean(data)
+        std_data = stat.stdev(data)
 
-
-
+        return avg_data, std_data
 
