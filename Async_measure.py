@@ -66,7 +66,7 @@ for temp_step in steps:
 
     # Set up the file where we will save the IV curves
     file_name = f"{name}_IV_{temp_step:.2f}".replace('.','_')
-    file_out = open(file_name, 'w')
+    file_out = open(file_name + '.csv', 'w')
 
     # Upon calling trigger, the device responds after roughly 4 seconds (It is slow when sending a sweep list)
     temperature_result = []
@@ -92,7 +92,7 @@ for temp_step in steps:
     file_out.write("### Temp Log ###\n")
     file_out.write("time, temperature\n")
     for i in range(len(temperature_result)):
-        file_out.write(f"{temperature_result[i][0]}, {temperature_result[i][0]}\n")
+        file_out.write(f"{temperature_result[i][0]}, {temperature_result[i][1]}\n")
     file_out.close()
     # Go to next temperature setpoint
     print("Done with setpoint")

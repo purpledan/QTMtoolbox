@@ -389,6 +389,11 @@ class Keithley4200A:
                 ret_meas.volt_list[i] = self.conv_meas(voltages[i])
                 ret_meas.curr_list[i] = self.conv_meas(currents[i])
 
+            np.trim_zeros(ret_meas.time_list, 'b')
+            np.trim_zeros(ret_meas.curr_list, 'b')
+            np.trim_zeros(ret_meas.volt_list, 'b')
+
+            ret_meas.set_list = ret_meas.set_list[:len(ret_meas.time_list)]
             return ret_meas
 
         def busy(self):

@@ -109,7 +109,7 @@ class CryoLabSP1:
         if min(data) < (self.gotoTemp - maxdif):
             return False
 
-        if (self.gotoTemp - maxdev) < avg_data < (self.gotoTemp + maxdev):
+        if ( (self.gotoTemp - maxdev) < avg_data < (self.gotoTemp + maxdev) ) is False:
             return False
         if std_data > maxstd:
             return False
