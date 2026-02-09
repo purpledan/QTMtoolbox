@@ -12,7 +12,8 @@ d.h.janse@utwente.nl
 """
 
 import pyvisa
-
+import statistics as stat
+from instruments.ringbuf import *
 
 class WrongInstrErr(Exception):
     """
@@ -42,6 +43,13 @@ class CryoLabSP1:
         self.BPres = -0.0
         self.LPres = -0.0
         self.Vac = -0.0
+
+        # Async data
+        self.ready = False
+        self.gotoTemp = -0.0
+        self.logdt = 1
+        self.buflen = 10
+        self.buffer = None
 
     def query(self, val):
         retval = self.visa.query(val)
@@ -76,3 +84,40 @@ class CryoLabSP1:
     def read_vacuum(self):
         self.read_status()
         return self.Vac
+
+    def goto(self, temperature):
+        self.ready = False
+        self.gotoTemp = temperature
+        self.buffer = RingBuffer(self.buflen)
+
+        self.write_temperature(self.gotoTemp)
+        self.read_status()
+        self.buffer.append(self.Temp)
+
+    def log(self):
+        self.read_status()
+        self.buffer.append(self.Temp)
+
+    def reached(self, maxdif, maxdev, maxstd):
+        data = []
+        data = self.buffer.get()
+        avg_data = stat.mean(data)
+        std_data = stat.stdev(data)
+
+        if max(data) > (self.gotoTemp + maxdif):
+            return False
+        if min(data) < (self.gotoTemp - maxdif):
+            return False
+
+        if (self.gotoTemp - maxdev) < avg_data < (self.gotoTemp + maxdev):
+            return False
+        if std_data > maxstd:
+            return False
+
+        self.ready = True
+        return True
+
+
+
+
+

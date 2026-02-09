@@ -334,7 +334,7 @@ class Keithley4200A:
 
             # It seems that the 4200 is slow so you need to delay the read here
             message = '{chan_mode}{chan_num}, 1, {compl}'.format(chan_mode = mode, chan_num = chan_set[0], compl = compliance) + sweep_string
-            self.dev.query(message, 4)
+            self.dev.visa.query(message, 4)
 
             self.dev.query('DT {:.3f}'.format(self.delaytime))
             self.dev.query('HT {:.1f}'.format(self.holdtime))
