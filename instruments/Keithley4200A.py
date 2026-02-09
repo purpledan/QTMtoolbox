@@ -384,16 +384,21 @@ class Keithley4200A:
             currents: str = self.dev.query("DO '{chan_name}I{chan}'".format(chan_name = chan_set[1], chan = chan_set[0]))
             currents = currents.split(',')
 
+            actual_len = 0
             for i in range(np.size(self.sweeplist)):
                 ret_meas.time_list[i] = self.conv_time(timestamps[i])
                 ret_meas.volt_list[i] = self.conv_meas(voltages[i])
                 ret_meas.curr_list[i] = self.conv_meas(currents[i])
 
-            np.trim_zeros(ret_meas.time_list, 'b')
-            np.trim_zeros(ret_meas.curr_list, 'b')
-            np.trim_zeros(ret_meas.volt_list, 'b')
+                # If time is 0.0, then we have reached the maximum of actual measurements
+                if ret_meas.time_list[i] == 0.0:
+                    break
+                actual_len += 1
+            ret_meas.time_list = ret_meas.time_list[:actual_len]
+            ret_meas.volt_list = ret_meas.volt_list[:actual_len]
+            ret_meas.curr_list = ret_meas.curr_list[:actual_len]
+            ret_meas.set_list = ret_meas.set_list[:actual_len]
 
-            ret_meas.set_list = ret_meas.set_list[:len(ret_meas.time_list)]
             return ret_meas
 
         def busy(self):
