@@ -26,7 +26,7 @@ cry = CryoLabSP1("192.168.100.55")
 sysmod = kei.sysmode(kei)
 
 # Constant settings go here
-sysmod.channelsetup(1, 'O', sysmod.chmode.SOURCE_VOLT, sysmod.chfunc.SWEEP)
+sysmod.channelsetup(1, 'O', sysmod.chmode.SOURCE_CURR, sysmod.chfunc.CONST)
 sysmod.abortoncomp = 1
 
 # Setup temperature steps
@@ -37,10 +37,9 @@ Tmax_diff = 1
 Tmax_dev = 0.5
 Tmax_std = 0.5
 
-Vstart = 0.0
-Vend = 10
-Vsteps = 2048
-Icompliance = 0.02
+Imeas = 1E-6
+Vcompl = 2.0
+
 steps = np.linspace(Tstart, Tend, Tsteps)
 
 name = "Test1"
@@ -61,7 +60,7 @@ for temp_step in steps:
     print("Measuring!")
     #Here we assume that the temperature is good
     # We can set up different sweeps for different temperatures, else we can also do this part outside the loop
-    sysmod.sweepsetup(1, Vstart, Vend, Vsteps, Icompliance)
+    sysmod.constsetup(1, Imeas, Vcompl)
     sysmod.measuresetup(1)
 
     # Set up the file where we will save the IV curves

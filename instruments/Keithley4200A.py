@@ -296,6 +296,7 @@ class Keithley4200A:
             self.autooff = 1
             self.waittime = 0.0
             self.between = 0.01
+            self.samples = 100
             self.integration = 2
             self.abortoncomp = 0
 
@@ -309,6 +310,32 @@ class Keithley4200A:
                 self.channelA = (channel, name, mode.value, func.value)
             if channel == 2:
                 self.channelB = (channel, name, mode.value, func.value)
+
+        def constsetup(self, channel: int, sourceVal: float, compliance: float):
+            self.dev.set_page(self.dev.Pages.SOURCE_SET)
+            mode = None
+            chan_set = None
+            if channel == 1:
+                chan_set = self.channelA
+            else:
+                chan_set = self.channelB
+
+            if chan_set[2] == self.chmode.SOURCE_VOLT.value:
+                mode = 'VC'
+            elif chan_set[2] == self.chmode.SOURCE_CURR.value:
+                mode = 'IC'
+
+            message = '{chan_mode}{chan_num}, {val}, {compl}'.format(chan_mode=mode, chan_num=chan_set[0], val = sourceVal, compl=compliance)
+            self.dev.query(message)
+
+            self.dev.query('DT {:.3f}'.format(self.delaytime))
+            self.dev.query('HT {:.1f}'.format(self.holdtime))
+            self.dev.query('ST {chan_num}, {set}'.format(chan_num=chan_set[0], set=self.autooff))
+            self.dev.query('EC {}'.format(self.abortoncomp))
+            self.dev.query('NR {}'.format(self.samples))
+
+            sweep = np.linspace(sourceVal, sourceVal, self.samples)
+            self.sweeplist = np.copy(sweep)
 
         def sweepsetup(self, channel: int, start: float, end: float, npoints: int, compliance: float):
             assert npoints <= 4096 # Limit for the 4200A
@@ -366,7 +393,7 @@ class Keithley4200A:
             self.dev.set_page(self.dev.Pages.MEAS_CON)
             self.dev.query("ME1")
 
-        def retreve(self, channel):
+        def retrieve(self, channel):
             chan_set = None
             if channel == 1:
                 chan_set = self.channelA
@@ -391,6 +418,7 @@ class Keithley4200A:
                 ret_meas.curr_list[i] = self.conv_meas(currents[i])
 
                 # If time is 0.0, then we have reached the maximum of actual measurements
+                # WARN: This will fail if you happen to get back the actual 0.0 measurement. Could this happen even?
                 if ret_meas.time_list[i] == 0.0:
                     break
                 actual_len += 1
